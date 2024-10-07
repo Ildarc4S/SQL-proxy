@@ -1,45 +1,74 @@
-#include "../include/ProxyServer.hpp"
+#include "ProxyServer.hpp"
 #include <iostream>
-#include <string.h>
+#include <cstring>
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/epoll.h>
 #include <fstream>
+#include <signal.h>
 
-ProxyServer::ProxyServer(const std::string& server_ip, int server_port)
-    : _proxy_server_ip(server_ip), _proxy_server_port(server_port), _server_socket(-1) {}
+volatile sig_atomic_t is_running = true;
+
+void signalHandler(int signal) {
+    if (signal == SIGINT) {
+        std::cout << "\nПолучен сигнал SIGINT. Завершение работы сервера..." << std::endl;
+        is_running = false;
+    }
+}
+
+void ProxyServer::addSocketToEpoll(int socket_fd) {
+    struct epoll_event event;
+    event.events = EPOLLIN;
+    event.data.fd = socket_fd;
+
+    if (epoll_ctl(_epoll_fd, EPOLL_CTL_ADD, socket_fd, &event) == -1) {
+        std::cerr << "Ошибка при добавлении сокета в epoll: " << std::strerror(errno) << std::endl;
+        is_running = false;
+        return;
+    }
+}
+
+
+
+ProxyServer::ProxyServer(const std::string& server_ip, int server_port, 
+                        const std::string& sql_servre_ip, int sql_server_port, 
+                        const std::string& log_file_path) : 
+    _proxy_server_ip{server_ip}, 
+    _proxy_server_port{server_port}, 
+    _sql_server_ip{sql_servre_ip},
+    _sql_server_port{sql_server_port},
+    _server_socket{-1},
+    _logger{log_file_path}
+     {}
 
 void ProxyServer::start() {
+    signal(SIGINT, signalHandler);
+
     initializeSocket();
     std::cout << "Прокси-сервер запущен на порту " << _proxy_server_port << std::endl;
 
     _epoll_fd = epoll_create1(0);
     if (_epoll_fd == -1) {
-        perror("epoll_create1 failed");
-        exit(EXIT_FAILURE);
+        std::cerr << "Ошибка при создании epoll: " << std::strerror(errno) << std::endl;
+        is_running = false;
     }
 
-    struct epoll_event event;
-    event.events = EPOLLIN;
-    event.data.fd = _server_socket;
-    if (epoll_ctl(_epoll_fd, EPOLL_CTL_ADD, _server_socket, &event) == -1) {
-        perror("epoll_ctl failed");
-        exit(EXIT_FAILURE);
-    }
+    addSocketToEpoll(_server_socket);
 
-    
-
-    while (true) {
+    while (is_running) {
         std::vector<epoll_event> events(MAX_CLIENTS);
         int ev_count = epoll_wait(_epoll_fd, events.data(), MAX_CLIENTS, -1);
         if (ev_count == -1) {
-            perror("epoll_wait failed");
-            exit(EXIT_FAILURE);
+            if (is_running) {
+                std::cerr << "Ошибка epoll_wait: " << std::strerror(errno) << std::endl;
+                is_running = false;
+            }
+            continue;
         }
 
-        for (int i = 0; i < ev_count; i++) {
+        for (int i = 0; i < ev_count && is_running; i++) {
             if (events[i].events & EPOLLIN) {
                 if (events[i].data.fd == _server_socket) {
                     acceptClient();
@@ -52,20 +81,22 @@ void ProxyServer::start() {
         }
     }
 
+    close(_epoll_fd);
     close(_server_socket);
+    clients.clear(); 
 }
 
 void ProxyServer::initializeSocket() {
     _server_socket = socket(AF_INET, SOCK_STREAM, 0);
     if (_server_socket < 0) {
-        perror("socket failed");
-        exit(EXIT_FAILURE);
+        std::cerr << "Ошибка при создании сокета: " << std::strerror(errno) << std::endl;
+        return;
     }
 
     int opt = 1;
     if (setsockopt(_server_socket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))) {
-        perror("setsockopt failed");
-        exit(EXIT_FAILURE);
+        std::cerr << "Ошибка при установке параметров сокета: " << std::strerror(errno) << std::endl;
+        return;
     }
 
     struct sockaddr_in address;
@@ -74,13 +105,13 @@ void ProxyServer::initializeSocket() {
     address.sin_port = htons(_proxy_server_port);
 
     if (bind(_server_socket, (struct sockaddr*)&address, sizeof(address)) < 0) {
-        perror("bind failed");
-        exit(EXIT_FAILURE);
+        std::cerr << "Ошибка при привязке сокета: " << std::strerror(errno) << std::endl;
+        return;
     }
 
     if (listen(_server_socket, 3) < 0) {
-        perror("listen failed");
-        exit(EXIT_FAILURE);
+        std::cerr << "Ошибка при прослушивании сокета: " << std::strerror(errno) << std::endl;
+        return;
     }
 }
 
@@ -89,40 +120,35 @@ void ProxyServer::acceptClient() {
     socklen_t addrlen = sizeof(address);
     int client_fd = accept(_server_socket, (struct sockaddr*)&address, &addrlen);
     if (client_fd == -1) {
-        perror("accept failed");
+        std::cerr << "Ошибка при принятии клиента: " << std::strerror(errno) << std::endl;
         return;
     }
 
     // Создание сокета для PostgreSQL-сервера
-    int pg_sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (pg_sockfd == -1) {
-        perror("socket failed");
+    int sql_servere_sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sql_servere_sockfd == -1) {
+        std::cerr << "Ошибка при создании сокета PostgreSQL: " << std::strerror(errno) << std::endl;
         close(client_fd);
         return;
     }
 
     // Подключение к PostgreSQL-серверу
-    struct sockaddr_in pg_address;
-    pg_address.sin_family = AF_INET;
-    pg_address.sin_addr.s_addr = inet_addr("127.0.0.1"); // Замените на IP-адрес PostgreSQL-сервера
-    pg_address.sin_port = htons(5432);
-    if (connect(pg_sockfd, (struct sockaddr*)&pg_address, sizeof(pg_address)) == -1) {
-        perror("connect failed");
+    struct sockaddr_in sql_server_addres;
+    sql_server_addres.sin_family = AF_INET;
+    sql_server_addres.sin_addr.s_addr = inet_addr(_sql_server_ip.c_str()); // Замените на IP-адрес PostgreSQL-сервера
+    sql_server_addres.sin_port = htons(_sql_server_port);
+    if (connect(sql_servere_sockfd, (struct sockaddr*)&sql_server_addres, sizeof(sql_server_addres)) == -1) {
+        std::cerr << "Ошибка при подключении к PostgreSQL: " << std::strerror(errno) << std::endl;
         close(client_fd);
-        close(pg_sockfd);
+        close(sql_servere_sockfd);
         return;
     }
 
     // Добавление нового клиента в карту
-    clients[client_fd] = {client_fd, "", 0, false, pg_sockfd};
+    clients[client_fd] = {client_fd, "", 0, false, sql_servere_sockfd};
 
-    struct epoll_event event;
-    event.events = EPOLLIN;
-    event.data.fd = client_fd;
-    if (epoll_ctl(_epoll_fd, EPOLL_CTL_ADD, client_fd, &event) == -1) {
-        perror("epoll_ctl failed");
-        exit(EXIT_FAILURE);
-    }
+    addSocketToEpoll(client_fd);
+    
     std::cout << "Новый клиент подключился: " << inet_ntoa(address.sin_addr) << std::endl;
 }
 
@@ -135,15 +161,13 @@ void ProxyServer::handleRequest(int client_socket) {
         clients.erase(client_socket);
         return;
     }
-    std::cout << client.buffer_size << ":\n";
-    std::cout << client.buffer << "-\n";
 
     if (!client.authenticated) {
         // Отправка данных на PostgreSQL
-        sendMessage(client.pg_sockfd, client.buffer, client.buffer_size);
+        sendMessage(client.sql_servere_sockfd, client.buffer, client.buffer_size);
 
         // Получаем ответ от PostgreSQL-сервера
-        client.buffer_size = recv(client.pg_sockfd, client.buffer, BUFFER_SIZE, 0);
+        client.buffer_size = recv(client.sql_servere_sockfd, client.buffer, BUFFER_SIZE, 0);
         if (client.buffer_size == 0) {
             closeSocket(client_socket);
             return;
@@ -161,22 +185,21 @@ void ProxyServer::handleRequest(int client_socket) {
 void ProxyServer::sendMessage(int sockfd, char* message, size_t len) {
     message[len] = '\0';
     if (send(sockfd, message, len, 0) == -1) {
-        perror("Ошибка отправки сообщения");
+        std::cerr << "Ошибка отправки сообщения: " << std::strerror(errno) << std::endl;
         closeSocket(sockfd);
     }
 }
 
 void ProxyServer::forwardToServer(int client_socket, Client& client) {
 
-        sendMessage(client.pg_sockfd, client.buffer, client.buffer_size);
-        client.buffer_size = recv(client.pg_sockfd, client.buffer, BUFFER_SIZE, 0);
-        std::cout << client.buffer <<  " " << client.buffer_size << "\n";
+        sendMessage(client.sql_servere_sockfd, client.buffer, client.buffer_size);
+        client.buffer_size = recv(client.sql_servere_sockfd, client.buffer, BUFFER_SIZE, 0);
 
         if (client.buffer_size > 0) {
             if(client.buffer[0] == 'E') {
-                std::cout << client.buffer << "\n";
                 sendMessage(client_socket, client.buffer, client.buffer_size);
-                close(client_socket);
+                client.buffer_size = recv(client.sql_servere_sockfd, client.buffer, BUFFER_SIZE, 0);
+                sendMessage(client_socket, client.buffer, client.buffer_size);
             } else {
                 sendMessage(client_socket, client.buffer, client.buffer_size);
             }
@@ -191,8 +214,5 @@ void ProxyServer::closeSocket(int socket) {
 }
 
 void ProxyServer::logSQLToFile(const char* message, int message_size) {
-    std::ofstream file;
-    file.open("../logs/a.txt", std::ios::app);
-    file << message << '\n';
-    file.close();
+    _logger.write_log(_packetParser.parsePacket(message, message_size));
 }
