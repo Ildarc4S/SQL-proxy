@@ -13,5 +13,6 @@ add_executable(ProxyServer
                ${CMAKE_SOURCE_DIR}/src/ProxyServer.cpp
                ${CMAKE_SOURCE_DIR}/src/PacketParser.cpp
                ${CMAKE_SOURCE_DIR}/src/Logger.cpp
+               ${CMAKE_SOURCE_DIR}/src/SocketManager.cpp
                ${CMAKE_SOURCE_DIR}/src/main.cpp
                )
