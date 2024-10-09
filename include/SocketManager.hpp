@@ -4,8 +4,11 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/epoll.h>
+
 #include <vector>
 #include <string>
+#include <cstring>
+#include <iostream>
 
 class SocketManager {
 public:
@@ -19,6 +22,6 @@ public:
     static int acceptConnection(int server_fd, struct sockaddr_in& address);
     static int addSocketToEpoll(int socket_fd, int epoll_fd);
     static int epollCreate();
-    static int epollWait(int epoll_fd, std::vector<epoll_event>& events, int max_clients, bool flug);
+    static int epollWait(int epoll_fd, std::vector<epoll_event>& events, int max_clients);
     static void createConnectorAddress(struct sockaddr_in& address,int server_port);
 };
