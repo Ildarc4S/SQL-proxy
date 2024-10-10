@@ -1,14 +1,14 @@
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
-#include <regex>  
+#include <regex>
 #include <string>
 
 #include "ProxyServer.hpp"
 
 bool fileExists(const std::string& path) {
     std::ifstream file("../" + path);
-    return file.good(); 
+    return file.good();
 }
 
 bool isValidIPAddress(const std::string& ip) {
@@ -34,33 +34,34 @@ bool validateInput(int argc, char* argv[], std::string& errorMsg) {
     if (argc != 6) {
         errorMsg =
             "You have not specified all the parameters: \n"
-            "\"" + std::string(argv[0]) + "\" <proxy_server_host> <proxy_server_port> <sql_server_host> <sql_server_port>"
+            "\"" +
+            std::string(argv[0]) +
+            "\" <proxy_server_host> <proxy_server_port> <sql_server_host> <sql_server_port>"
             "<log_file_path>";
         correct_params = false;
     } else {
+        if (!isValidIPAddress(argv[1])) {
+            errorMsg = "Invalid IP address of the proxy server: " + std::string(argv[1]);
+            correct_params = false;
+        }
 
-    if (!isValidIPAddress(argv[1])) {
-        errorMsg = "Invalid IP address of the proxy server: " + std::string(argv[1]);
-        correct_params = false;
-    }
+        if (!isValidIPAddress(argv[3])) {
+            errorMsg = "Invalid IP address of the SQL server: " + std::string(argv[3]);
+            correct_params = false;
+        }
 
-    if (!isValidIPAddress(argv[3])) {
-        errorMsg = "Invalid IP address of the SQL server: " + std::string(argv[3]);
-        correct_params = false;
-    }
+        int proxy_server_port = atoi(argv[2]);
+        int sql_server_port = atoi(argv[4]);
 
-    int proxy_server_port = atoi(argv[2]);
-    int sql_server_port = atoi(argv[4]);
+        if (proxy_server_port <= 0 || sql_server_port <= 0) {
+            errorMsg = "Ports must be positive numbers!s";
+            correct_params = false;
+        }
 
-    if (proxy_server_port <= 0 || sql_server_port <= 0) {
-        errorMsg = "Ports must be positive numbers!s";
-        correct_params = false;
-    }
-
-    if (!fileExists(argv[5])) {
-        errorMsg = "No such file or directory: " + std::string(argv[5]);
-        correct_params = false;
-    }
+        if (!fileExists(argv[5])) {
+            errorMsg = "No such file or directory: " + std::string(argv[5]);
+            correct_params = false;
+        }
     }
     return correct_params;
 }

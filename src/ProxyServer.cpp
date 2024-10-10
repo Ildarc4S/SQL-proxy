@@ -16,8 +16,7 @@ ProxyServer::ProxyServer(const std::string& server_ip, int server_port, const st
       _sql_server_ip{sql_servre_ip},
       _sql_server_port{sql_server_port},
       _server_socket_fd{-1},
-      _logger{log_file_path}
-    {}
+      _logger{log_file_path} {}
 
 ProxyServer::~ProxyServer() {
     for (const auto& client : clients) {
@@ -139,7 +138,6 @@ void ProxyServer::acceptClient() {
         if (_sql_server_fd != -1) {
             closeSocket(_sql_server_fd);
         }
-        
     }
 }
 

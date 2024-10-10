@@ -1,17 +1,17 @@
 #pragma once
 
-#include <sys/socket.h>
-#include <netinet/in.h>
 #include <arpa/inet.h>
+#include <netinet/in.h>
 #include <sys/epoll.h>
+#include <sys/socket.h>
 
-#include <vector>
-#include <string>
 #include <cstring>
 #include <iostream>
+#include <string>
+#include <vector>
 
 class SocketManager {
-public:
+   public:
     SocketManager() = default;
     static int creatteSocket();
     static int connectServer(int server_fd, std::string& server_ip, int server_port);
@@ -23,5 +23,5 @@ public:
     static int addSocketToEpoll(int socket_fd, int epoll_fd);
     static int epollCreate();
     static int epollWait(int epoll_fd, std::vector<epoll_event>& events, int max_clients);
-    static void createConnectorAddress(struct sockaddr_in& address,int server_port);
+    static void createConnectorAddress(struct sockaddr_in& address, int server_port);
 };
