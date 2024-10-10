@@ -2,17 +2,19 @@
 #include <chrono>
 #include <cstdlib>
 #include <iostream>
+#include <regex>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <thread>
 #include <vector>
 
-std::atomic<int> successful_clients{0};  // successful customer counter
+std::atomic<int> successful_clients{0};  // successful client counter
 
 void runClient(int client_id, int time, const std::string& db_name, const std::string& db_user,
                const std::string& db_password, const std::string& db_host, const std::string& db_port,
                const std::string& query) {
-    int success = true;
+    bool success = true;
     try {
         std::cout << "Client " << client_id << " connected to database." << std::endl;
 
@@ -40,33 +42,71 @@ void runClient(int client_id, int time, const std::string& db_name, const std::s
     }
 }
 
+bool isValidIPAddress(const std::string& ip) {
+    bool correct_address = true;
+    std::regex ip_regex("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$");
+    if (!std::regex_match(ip, ip_regex)) {
+        correct_address = false;
+    }
+
+    std::stringstream ss(ip);
+    std::string part_ip;
+    while (std::getline(ss, part_ip, '.')) {
+        int num = std::stoi(part_ip);
+        if (num < 0 || num > 255) {
+            correct_address = false;
+        }
+    }
+    return correct_address;
+}
+
 int main(int argc, char* argv[]) {
     if (argc != 9) {
         std::cerr << "Usage: " << argv[0]
                   << " <db_name> <db_user> <db_password> <db_host> <db_port> <db_query> <time_seconds> "
                      "<clients_count>"
                   << std::endl;
-        return 1;
-    }
+    } else {
+        std::string db_name = argv[1];
+        std::string db_user = argv[2];
+        std::string db_password = argv[3];
+        std::string db_host = argv[4];
+        std::string db_port = argv[5];
+        std::string db_query = argv[6];
+        bool continue_programm = true;
 
-    std::string db_name = argv[1];
-    std::string db_user = argv[2];
-    std::string db_password = argv[3];
-    std::string db_host = argv[4];
-    std::string db_port = argv[5];
-    std::string db_query = argv[6];
-    int time = std::stoi(argv[7]);
-    int num_clients = atoi(argv[8]);
+        int time = std::stoi(argv[7]);
+        if (time <= 0) {
+            std::cerr << "<time_seconds> must be a positive integer." << std::endl;
+            continue_programm = false;
+        }
 
-    std::vector<std::thread> clients;
-    for (int i = 0; i < num_clients; ++i) {
-        clients.emplace_back(runClient, i, time, db_name, db_user, db_password, db_host, db_port, db_query);
-    }
+        int num_clients = atoi(argv[8]);
+        if (num_clients <= 0) {
+            std::cerr << "<clients_count> must be a positive integer." << std::endl;
+            continue_programm = false;
+        }
 
-    for (auto& client : clients) {
-        client.join();
+        if (!isValidIPAddress(db_host)) {
+            std::cerr << "<db_host> is not a valid IP address." << std::endl;
+            continue_programm = false;
+        }
+
+        if (continue_programm) {
+            std::vector<std::thread> clients;
+            for (int i = 0; i < num_clients; ++i) {
+                clients.emplace_back(runClient, i, time, db_name, db_user, db_password, db_host, db_port,
+                                     db_query);
+            }
+
+            for (auto& client : clients) {
+                client.join();
+            }
+
+            // Output the total number of successful clients
+            std::cout << "Total successful clients: " << successful_clients.load() << " out of "
+                      << num_clients << std::endl;
+        }
     }
-    std::cout << "Total successful clients: " << successful_clients.load() << " out of " << num_clients
-              << std::endl;
     return 0;
 }

@@ -1,7 +1,5 @@
 #include "PacketParser.hpp"
 
-#include <algorithm>
-
 std::string PacketParser::parsePacket(const char* packet, int packet_length) {
     if (isSQLPacket(packet, packet_length)) {
         std::string query(packet + COMMAND_OFFSET, packet_length - MIN_PACKET_LENGTH);
