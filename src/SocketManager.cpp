@@ -1,5 +1,14 @@
 #include "SocketManager.hpp"
 
+int SocketManager::setSocketOption(int server_socket_fd, int level, int optname) {
+    int opt = 1;
+    int result = setsockopt(server_socket_fd, level, optname, &opt, sizeof(opt));
+    if (result) {
+        std::cerr << "Error setting socket parameters:" << std::strerror(errno) << std::endl;
+    }
+    return result;
+}
+
 void SocketManager::createConnectorAddress(struct sockaddr_in& address, int server_port) {
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = INADDR_ANY;

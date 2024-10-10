@@ -37,7 +37,7 @@ void ProxyServer::start() {
 
     is_running = initializeSocket();
     if (is_running) {
-        std::cout << "Прокси-сервер запущен на порту " << _proxy_server_port << std::endl;
+        std::cout << "The proxy server is running on the ports " << _proxy_server_port << std::endl;
     }
 
     _epoll_fd = SocketManager::epollCreate();
@@ -65,7 +65,6 @@ void ProxyServer::start() {
                 }
             } else if (events[i].events & EPOLLERR || events[i].events & EPOLLHUP) {
                 closeSocket(events[i].data.fd);
-                std::cout << "1\n";
             }
         }
     }
@@ -79,9 +78,7 @@ bool ProxyServer::initializeSocket() {
         func_result = false;
     }
 
-    int opt = 1;
-    if (setsockopt(_server_socket_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))) {
-        std::cerr << "Ошибка при установке параметров сокета: " << std::strerror(errno) << std::endl;
+    if (SocketManager::setSocketOption(_server_socket_fd, SOL_SOCKET, SO_REUSEADDR)) {
         func_result = false;
     }
 
@@ -181,7 +178,6 @@ void ProxyServer::handleRequest(int client_socket) {
 bool ProxyServer::sendMessage(int socket_fd, char* message, size_t len) {
     bool result = true;
     if (SocketManager::sendMessage(socket_fd, message, len) == -1) {
-        std::cout << "1\n";
         closeSocket(socket_fd);
     }
     return result;

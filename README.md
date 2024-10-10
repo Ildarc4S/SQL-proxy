@@ -180,7 +180,7 @@ psql "host=proxy_host port=proxy_port user=your_user dbname=your_db sslmode=disa
 ### 4. Тестирование через подключение клиента с помощью psql
 Вы можете протестировать подключение к прокси-серверу PostgreSQL с помощью клиента psql:
 ```bash
-psql "host=127.0.0.1 port=5002 user=test_user dbname=test_user sslmode=disable"
+psql "host=127.0.0.1 port=5002 user=test_user dbname=test_db sslmode=disable"
 ```
 * `127.0.0.1` - адрес PostgreSQL-сервера.
 * `5002` - порт PostgreSQL прокси-сервера.

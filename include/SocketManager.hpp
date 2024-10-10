@@ -13,6 +13,7 @@
 class SocketManager {
    public:
     SocketManager() = default;
+    static int setSocketOption(int server_socket_fd, int level, int optname);
     static int creatteSocket();
     static int connectServer(int server_fd, std::string& server_ip, int server_port);
     static int bindSocket(int server_fd, const sockaddr_in& address);
