@@ -92,7 +92,6 @@ bool ProxyServer::initializeSocket() {
     if (SocketManager::listenSocket(_server_socket_fd, 512) < 0) {
         func_result = false;
     }
-
     return func_result;
 }
 
@@ -186,25 +185,33 @@ bool ProxyServer::sendMessage(int socket_fd, char* message, size_t len) {
 bool ProxyServer::checkClientMessage(int client_socket, Client& client) {
     bool func_result = true;
     if (client.buffer[0] == 'E') {
-        func_result = sendMessage(client_socket, client.buffer, client.buffer_size);
-        if (func_result) {
-            client.buffer_size = SocketManager::recvMessage(client.sql_server_fd, client.buffer, BUFFER_SIZE);
-            if (client.buffer_size > 0) {
-                func_result = sendMessage(client_socket, client.buffer, client.buffer_size);
-            } else {
-                func_result = false;
+        int begin_stuck_message = client.buffer_size - 6;
+        if (client.buffer[begin_stuck_message] == 'Z') {
+            sendMessage(client_socket, client.buffer, begin_stuck_message);
+            client.buffer[begin_stuck_message] = 'Z';
+            sendMessage(client_socket, &client.buffer[begin_stuck_message], 6);
+        } else {
+            func_result = sendMessage(client_socket, client.buffer, client.buffer_size);
+            if (func_result) {
+                client.buffer_size =
+                    SocketManager::recvMessage(client.sql_server_fd, client.buffer, BUFFER_SIZE);
+                if (client.buffer_size > 0) {
+                    func_result = sendMessage(client_socket, client.buffer, client.buffer_size);
+                } else {
+                    func_result = false;
+                }
             }
         }
     } else {
         func_result = sendMessage(client_socket, client.buffer, client.buffer_size);
     }
+
     return func_result;
 }
 
 bool ProxyServer::forwardToServer(int client_socket, Client& client) {
     bool func_result = true;
     func_result = sendMessage(client.sql_server_fd, client.buffer, client.buffer_size);
-
     if (func_result) {
         client.buffer_size = SocketManager::recvMessage(client.sql_server_fd, client.buffer, BUFFER_SIZE);
         if (client.buffer_size > 0) {
