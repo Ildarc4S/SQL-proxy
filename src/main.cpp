@@ -37,12 +37,12 @@ bool validateInput(int argc, char* argv[], std::string& errorMsg) {
         correct_params = false;
     } else {
         if (!isValidIPAddress(argv[1])) {
-            errorMsg = "Invalid IP address of the proxy server: " + std::string(argv[1]);
+            errorMsg = "Invalid IP address of the proxy server : " + std::string(argv[1]);
             correct_params = false;
         }
 
         if (!isValidIPAddress(argv[3])) {
-            errorMsg = "Invalid IP address of the SQL server: " + std::string(argv[3]);
+            errorMsg = "Invalid IP address of the SQL server : " + std::string(argv[3]);
             correct_params = false;
         }
 
