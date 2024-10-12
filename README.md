@@ -152,7 +152,7 @@ valgrind ./../bin/TestProxyServer <db_name> <db_user> <db_password> <db_host> <d
     ```
 3. Создайте таблицу для тестирования и записей в нее:
     ```bash
-    \c test_db
+    \c test_db test_user
     CREATE TABLE users (
         id SERIAL PRIMARY KEY,
         name VARCHAR(100),
