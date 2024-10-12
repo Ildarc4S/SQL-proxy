@@ -32,23 +32,26 @@ SQL Proxy Server — это прокси-сервер для PostgreSQL, кот�
 ```
 ## Установка пакетов (Ubuntu, при необходимости)
 1. **Установка PostgreSQL:**
+
     ```bash
     sudo apt-get update
     sudo apt-get install postgresql
     ```
-2. **Установка PostgreSQL клиента:**
+3. **Установка PostgreSQL клиента:**
     ```bash
     sudo apt-get install postgresql-client
     ```
-3. **Установка компилятора GCC:**
+   Не забудьте запустить PostgreSQL!  
+
+4. **Установка компилятора GCC:**
     ```bash
     sudo apt-get install gcc
     ```
-4. **Установка CMake:**
+5. **Установка CMake:**
     ```bash
     sudo apt-get install cmake
     ```
-5. **Установка Valgrind**
+6. **Установка Valgrind**
     ```bash
     sudo apt-get install valgrind
     ```
