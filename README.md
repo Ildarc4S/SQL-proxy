@@ -134,7 +134,7 @@ psql "host=proxy_host port=proxy_port user=your_user dbname=your_db sslmode=disa
 
 **Для проверки утечек памяти воспользуйтесь valgrind**
 ```bash
-valgrind ./../bin/TestProxyServer <db_name> <db_user> <db_password> <db_host> <db_port> <db_query> <time_seconds> <clients_count>
+valgrind ./../bin/ProxyServer <proxy_server_host> <proxy_server_port> <sql_server_host> <sql_server_port> <log_file_path>
 ```
 
 ##  Пример использования
