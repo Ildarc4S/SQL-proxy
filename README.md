@@ -66,8 +66,8 @@ SQL Proxy Server — это прокси-сервер для PostgreSQL, кот�
 
 1. **Клонирование репозитория:**
    ```bash
-   git clone https://github.com/вашрепозиторий.git
-   cd вашрепозиторий
+   git clone https://github.com/Ildarc4S/SQL-proxy.git
+   cd SQL-proxy
     ```
 2. **Сборка проекта:**
     ```bash 
